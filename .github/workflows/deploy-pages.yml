@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'index.html'
+      - 'help.html'
       - 'grid_data.js'
       - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:
@@ -36,6 +37,7 @@ jobs:
         run: |
           mkdir -p _site
           cp index.html _site/index.html
+          cp help.html _site/help.html
           cp grid_data.js _site/grid_data.js
 
       - name: Upload Pages artifact
