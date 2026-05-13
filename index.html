@@ -11,7 +11,7 @@
     <style>
         :root {
             --bg: #f4efe6;
-            --panel: rgba(255, 255, 255, 0.92);
+            --panel: #fffdf5;
             --ink: #173028;
             --muted: #5f6f67;
             --line: rgba(23, 48, 40, 0.12);
@@ -140,7 +140,7 @@
         .stat {
             border-radius: 18px;
             border: 1px solid rgba(23, 48, 40, 0.1);
-            background: rgba(255, 255, 255, 0.72);
+            background: #fffdf5;
             padding: 12px 14px;
         }
 
@@ -341,16 +341,16 @@
         
         function getColorForCount(value) {
             const colors = [
-                '#fff7bc',
-                '#fee391',
-                '#fec44f',
-                '#fe9929',
-                '#ec7014',
-                '#cc4c02',
-                '#993404',
-                '#7f2704',
-                '#542788',
-                '#2d004b'
+                '#f7fcf5',
+                '#e5f5e0',
+                '#c7e9c0',
+                '#a1d99b',
+                '#74c476',
+                '#41ab5d',
+                '#238b45',
+                '#006d2c',
+                '#00441b',
+                '#003314'
             ];
 
             const index = Math.max(0, Math.min(9, Math.ceil(value) - 1));
