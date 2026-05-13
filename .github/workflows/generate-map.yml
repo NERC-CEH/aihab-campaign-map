@@ -1,0 +1,68 @@
+name: Generate OSGB Grid Map
+
+on:
+  # Trigger on push to main branch (code changes only)
+  push:
+    branches: [ main ]
+    paths:
+      - 'generate_grid_map.py'
+      - 'download_data.py'
+      - '.github/workflows/generate-map.yml'
+
+  # Run nightly to pick up new bucket data
+  schedule:
+    - cron: '0 3 * * *'
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  generate-map:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyproj "huggingface_hub[hf_xet]"
+
+    - name: Download data from HF bucket
+      env:
+        HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      run: python download_data.py
+
+    - name: Generate grid map data
+      run: python generate_grid_map.py
+
+    - name: Check if grid_data.js changed
+      id: git-diff
+      run: |
+        if git diff --quiet grid_data.js; then
+          echo "changed=false" >> $GITHUB_OUTPUT
+        else
+          echo "changed=true" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Commit and push changes
+      if: steps.git-diff.outputs.changed == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add grid_data.js
+        git commit -m "Update grid map data - $(date +'%Y-%m-%d %H:%M:%S')"
+        git push
+
+    - name: No changes needed
+      if: steps.git-diff.outputs.changed == 'false'
+      run: echo "Grid data already up to date"
+

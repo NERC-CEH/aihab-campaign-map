@@ -1,0 +1,31 @@
+# Data files (downloaded from HF bucket during CI/CD)
+data/
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment variables
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Sync/backup files
+sync-plan.jsonl
+*.backup

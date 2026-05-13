@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Hab Campaign Map</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.8.1/proj4.min.js"></script>
+    <script src="grid_data.js"></script>
+    <style>
+        :root {
+            --bg: #f4efe6;
+            --panel: rgba(255, 255, 255, 0.92);
+            --ink: #173028;
+            --muted: #5f6f67;
+            --line: rgba(23, 48, 40, 0.12);
+            --accent: #2f6b4f;
+            --accent-2: #d8a84f;
+            --shadow: 0 20px 50px rgba(35, 47, 42, 0.16);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+            height: 100vh;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at top left, rgba(47, 107, 79, 0.16), transparent 32%),
+                radial-gradient(circle at 80% 10%, rgba(216, 168, 79, 0.18), transparent 26%),
+                linear-gradient(180deg, #f7f3ec 0%, var(--bg) 100%);
+            overflow: hidden;
+        }
+
+        #map {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .app-shell {
+            position: relative;
+            z-index: 500;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .topbar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: grid;
+            grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.9fr);
+            gap: 16px;
+            pointer-events: none;
+        }
+
+        .brand-card,
+        .summary-card,
+        .guide-card,
+        .legend,
+        .no-data-card {
+            background: var(--panel);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--line);
+            box-shadow: var(--shadow);
+        }
+
+        .brand-card {
+            border-radius: 24px;
+            padding: 20px 24px;
+            display: grid;
+            gap: 14px;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .eyebrow::before {
+            content: "";
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            box-shadow: 0 0 0 4px rgba(47, 107, 79, 0.12);
+        }
+
+        .brand-title {
+            font-size: clamp(30px, 3vw, 48px);
+            line-height: 1.02;
+            letter-spacing: -0.04em;
+            font-weight: 800;
+        }
+
+        .brand-copy {
+            max-width: 68ch;
+            font-size: 15px;
+            line-height: 1.6;
+            color: var(--muted);
+        }
+
+        .summary-card {
+            border-radius: 24px;
+            padding: 18px;
+            display: grid;
+            gap: 12px;
+            align-content: start;
+        }
+
+        .summary-heading {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+            font-weight: 700;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .stat {
+            border-radius: 18px;
+            border: 1px solid rgba(23, 48, 40, 0.1);
+            background: rgba(255, 255, 255, 0.72);
+            padding: 12px 14px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        .stat-value {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+        }
+
+        .stat-note {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .side-panel {
+            position: absolute;
+            top: 144px;
+            right: 20px;
+            width: min(340px, calc(100vw - 40px));
+            display: grid;
+            gap: 14px;
+            pointer-events: none;
+        }
+
+        .guide-card {
+            border-radius: 22px;
+            padding: 18px;
+            display: grid;
+            gap: 12px;
+        }
+
+        .guide-title {
+            font-size: 16px;
+            font-weight: 800;
+        }
+
+        .guide-list {
+            display: grid;
+            gap: 10px;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.45;
+        }
+
+        .guide-item {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .guide-badge {
+            flex: 0 0 auto;
+            width: 26px;
+            height: 26px;
+            border-radius: 999px;
+            display: grid;
+            place-items: center;
+            font-size: 12px;
+            font-weight: 800;
+            background: rgba(47, 107, 79, 0.12);
+            color: var(--accent);
+        }
+
+        .legend {
+            padding: 10px 15px;
+            border-radius: 18px;
+            line-height: 1.8;
+            font-size: 12px;
+            color: var(--ink);
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+            border: 1px solid rgba(23, 48, 40, 0.16);
+            border-radius: 6px;
+        }
+
+        .popup-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .popup-value {
+            font-size: 14px;
+            color: var(--muted);
+        }
+
+        .leaflet-control-attribution {
+            background: rgba(255, 255, 255, 0.85) !important;
+            backdrop-filter: blur(8px);
+            border-radius: 10px;
+        }
+
+        .campaign-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            width: fit-content;
+            border-radius: 999px;
+            padding: 8px 12px;
+            background: rgba(47, 107, 79, 0.08);
+            color: var(--accent);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .campaign-chip::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: var(--accent);
+        }
+
+        .no-data-card {
+            border-radius: 20px;
+            padding: 16px;
+            max-width: 320px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="app-shell">
+        <div class="topbar">
+            <div class="brand-card">
+                <div class="brand-title">We're collecting habitat images from across the UK</div>
+                <div class="brand-copy">
+                    This map shows where campaign contributors have recorded habitat images for AI-Hab.
+                    Each 10km OSGB square reflects the number of distinct selected habitat codes submitted in that square,
+                    helping you see both coverage and habitat diversity at a glance.
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="stat-grid" id="campaign-stats"></div>
+            </div>
+        </div>
+
+    </div>
+    
+    <script>
+        // Initialize the map to show all of UK
+        const map = L.map('map');
+        const loadedLayers = L.featureGroup().addTo(map);
+        
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        // Fit map to UK bounds
+        const ukBounds = L.latLngBounds(
+            L.latLng(49.5, -8.5),  // Southwest
+            L.latLng(60.8, 2.5)    // Northeast
+        );
+        const ukCenter = ukBounds.getCenter();
+        map.setView(ukCenter, 7);  // Zoom level 6 shows all of UK
+        
+        // OSGB 10km grid configuration
+        // Grid squares are defined by their lower-left corner (SW) in OSGB coordinates
+        const osgbBounds = {
+            minEasting: 0,
+            maxEasting: 700000,
+            minNorthing: 0,
+            maxNorthing: 1200000
+        };
+        
+        // Function to convert OSGB coordinates to latitude/longitude using accurate Transverse Mercator projection
+        function osgbToLatLng(easting, northing) {
+            // OSGB36 projection definition (Transverse Mercator)
+            const osgb36 = '+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +datum=OSGB36 +units=m +no_defs';
+            const wgs84 = '+proj=longlat +datum=WGS84 +no_defs';
+            
+            const proj = proj4(osgb36, wgs84);
+            const [lng, lat] = proj.forward([easting, northing]);
+            
+            return [lat, lng];
+        }
+        
+        function getColorForCount(value) {
+            const colors = [
+                '#fff7bc',
+                '#fee391',
+                '#fec44f',
+                '#fe9929',
+                '#ec7014',
+                '#cc4c02',
+                '#993404',
+                '#7f2704',
+                '#542788',
+                '#2d004b'
+            ];
+
+            const index = Math.max(0, Math.min(9, Math.ceil(value) - 1));
+            return colors[index];
+        }
+
+        function renderGridData(data) {
+            if (!Array.isArray(data) || data.length === 0) {
+                console.warn('No grid data found.');
+                showNoDataMessage('No generated grid data was found. Run generate_grid_map.py after adding files in data/.');
+                return;
+            }
+
+            loadedLayers.clearLayers();
+
+            data.forEach(item => {
+                const sw = osgbToLatLng(item.easting, item.northing);
+                const ne = osgbToLatLng(item.easting + 10000, item.northing + 10000);
+                const rectangle = L.rectangle([sw, ne], {
+                    color: '#666',
+                    weight: 1,
+                    fillColor: getColorForCount(item.value),
+                    fillOpacity: 0.7
+                }).addTo(loadedLayers);
+
+                rectangle.bindPopup(
+                    `<div class="popup-value">Distinct habitat codes: ${item.value}</div>
+                     ${Array.isArray(item.selected_habitat_codes) && item.selected_habitat_codes.length ? `
+                        <div class="popup-value" style="margin-top: 8px;">
+                            <strong>Habitats:</strong><br>
+                                     ${item.selected_habitat_codes.map(h => `• ${h.code}${h.name ? ` – ${h.name}` : ''}`).join('<br>')}
+                        </div>
+                     ` : ''}`
+                );
+            });
+
+            addLegend();
+            updateCampaignStats(data);
+            console.log('Map rendering complete!');
+        }
+
+        function updateCampaignStats(data) {
+            const stats = document.getElementById('campaign-stats');
+            if (!stats) {
+                return;
+            }
+
+            const gridSquares = data.length;
+            const distinctCodes = new Set();
+            let maxsquareValue = 0;
+
+            data.forEach(item => {
+                if (Array.isArray(item.selected_habitat_codes)) {
+                    item.selected_habitat_codes.forEach(code => distinctCodes.add(code));
+                }
+                if (item.value > maxsquareValue) {
+                    maxsquareValue = item.value;
+                }
+            });
+
+            stats.innerHTML = [
+                { label: 'Grid squares', value: gridSquares, note: '10km squares with data' },
+                { label: 'Habitat codes', value: distinctCodes.size, note: 'Unique UKHab Level 3' },
+                { label: 'Top square', value: `${maxsquareValue}`, note: 'Most distinct habitats per square' }
+            ].map(stat => `
+                <div class="stat">
+                    <div class="stat-label">${stat.label}</div>
+                    <div class="stat-value">${stat.value}</div>
+                    <div class="stat-note">${stat.note}</div>
+                </div>
+            `).join('');
+        }
+
+        // Load and display grid squares from the data file generated by Python
+        function loadGridData() {
+            try {
+                const data = window.GRID_DATA;
+                console.log('Loaded grid data from grid_data.js:', Array.isArray(data) ? data.length : 0, 'grid squares');
+                if (Array.isArray(data) && data.length > 0) {
+                    renderGridData(data);
+                    return;
+                }
+                console.warn('grid_data.js is missing or empty.');
+            } catch (error) {
+                console.error('Error reading window.GRID_DATA:', error);
+            }
+            showNoDataMessage('Unable to load generated grid data. Run generate_grid_map.py to create grid_data.js.');
+        }
+        
+        function showNoDataMessage(message) {
+            loadedLayers.clearLayers();
+            const banner = L.control({ position: 'topright' });
+
+            banner.onAdd = function () {
+                const div = L.DomUtil.create('div', 'no-data-card');
+                div.innerHTML = `
+                    <div class="summary-heading">Campaign data</div>
+                    <div class="guide-title" style="margin-top: 6px;">No grid data loaded</div>
+                    <div class="brand-copy" style="margin-top: 8px;">${message}</div>
+                `;
+                return div;
+            };
+
+            banner.addTo(map);
+            console.warn(message);
+        }
+        
+        // Add legend to map
+        function addLegend() {
+            const legend = L.control({ position: 'bottomright' });
+            
+            legend.onAdd = function(map) {
+                const div = L.DomUtil.create('div', 'legend');
+
+                const title = document.createElement('div');
+                title.style.cssText = 'font-size:13px;font-weight:800;margin-bottom:8px;color:var(--ink);letter-spacing:-0.01em;';
+                title.textContent = 'Habitats';
+                div.appendChild(title);
+                
+                for (let value = 1; value <= 10; value++) {
+                    const labelValue = value === 10 ? '10+' : String(value);
+                    const color = getColorForCount(value);
+                    
+                    const item = document.createElement('div');
+                    item.className = 'legend-item';
+                    
+                    const colorBox = document.createElement('div');
+                    colorBox.className = 'legend-color';
+                    colorBox.style.backgroundColor = color;
+                    
+                    const label = document.createElement('span');
+                    label.textContent = labelValue;
+                    
+                    item.appendChild(colorBox);
+                    item.appendChild(label);
+                    div.appendChild(item);
+                }
+                
+                return div;
+            };
+            
+            legend.addTo(map);
+        }
+        
+        // Load grid data once the page is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadGridData);
+        } else {
+            loadGridData();
+        }
+    </script>
+</body>
+</html>
