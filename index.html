@@ -58,7 +58,6 @@
             left: 20px;
             right: 20px;
             display: grid;
-            grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.9fr);
             gap: 16px;
             pointer-events: none;
         }
@@ -133,7 +132,7 @@
 
         .stat-grid {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 10px;
         }
 
@@ -284,14 +283,6 @@
     <div id="map"></div>
     <div class="app-shell">
         <div class="topbar">
-            <div class="brand-card">
-                <div class="brand-title">We're collecting habitat images from across the UK</div>
-                <div class="brand-copy">
-                    This map shows where campaign contributors have recorded habitat images for AI-Hab.
-                    Each 10km OSGB square reflects the number of distinct selected habitat codes submitted in that square,
-                    helping you see both coverage and habitat diversity at a glance.
-                </div>
-            </div>
             <div class="summary-card">
                 <div class="stat-grid" id="campaign-stats"></div>
             </div>
